@@ -1,0 +1,10 @@
+flask
+nltk
+numpy
+networkx
+scipy
+requests
+pyperclip
+Pillow
+opencv-python
+python-dotenv

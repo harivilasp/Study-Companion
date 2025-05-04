@@ -5,14 +5,14 @@ import networkx as nx
 
 #2. Generate clean sentences
 def read_article(filedata):
-    #file = open(file_name, "r")
-    #filedata = file.readlines()
     article = filedata.split(". ")
     sentences = []
     for sentence in article:
-       #print(sentence)
-       sentences.append(sentence.replace("[^a-zA-Z]", " ").split(" "))
-    sentences.pop()
+        clean = sentence.replace("[^a-zA-Z]", " ").split(" ")
+        if len([w for w in clean if w.strip()]) > 2:  # Only add if not empty
+            sentences.append(clean)
+    if sentences:
+        sentences = [s for s in sentences if any(w.strip() for w in s)]
     return sentences
 
 #3. Similarity matrix
@@ -52,16 +52,20 @@ def generate_summary(file_name, top_n=1):
     stop_words = stopwords.words('english')
     summarize_text = []
     # Step 1 - Read text and tokenize
-    sentences =  read_article(file_name)
-    # Step 2 - Generate Similary Martix across sentences
-    sentence_similarity_martix = build_similarity_matrix(sentences, stop_words)
-    # Step 3 - Rank sentences in similarity martix
-    sentence_similarity_graph = nx.from_numpy_array(sentence_similarity_martix)
-    scores = nx.pagerank(sentence_similarity_graph)
-    # Step 4 - Sort the rank and pick top sentences
-    ranked_sentence = sorted(((scores[i],s) for i,s in enumerate(sentences)), reverse=True)    
-    #print("Indexes of top ranked_sentence order are ", ranked_sentence)
-    for i in range(top_n):
-        summarize_text.append(" ".join(ranked_sentence[i][1]))
-    #print("Summarize Text: \n", ". ".join(summarize_text))
-    return summarize_text
+    sentences = read_article(file_name)
+    if not sentences or len(sentences) < 2:
+        return ["Input text is too short for summarization. Please provide a longer or more detailed input."]
+    # Step 2 - Generate Similarity Matrix across sentences
+    try:
+        sentence_similarity_martix = build_similarity_matrix(sentences, stop_words)
+        # Step 3 - Rank sentences in similarity matrix
+        sentence_similarity_graph = nx.from_numpy_array(sentence_similarity_martix)
+        scores = nx.pagerank(sentence_similarity_graph)
+        # Step 4 - Sort the rank and pick top sentences
+        ranked_sentence = sorted(((scores[i], s) for i, s in enumerate(sentences)), reverse=True)
+        for i in range(min(top_n, len(ranked_sentence))):
+            summarize_text.append(" ".join(ranked_sentence[i][1]))
+        return summarize_text
+    except Exception as e:
+        return [f"Summarization failed: {str(e)}"]
+
