@@ -9,24 +9,40 @@ import requests
 def ocr_from_imagefile(file_storage, api_key=None):
     """
     Accepts a Flask FileStorage object or file-like object, sends to OCR.space, returns detected text.
+    Handles unexpected responses gracefully.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     url_api = "https://api.ocr.space/parse/image"
     if api_key is None:
-        # Try to load from .env or fallback to demo key
         import os
         api_key = os.getenv("OCR_API_KEY")
-    # Read image bytes
     file_bytes = file_storage.read()
-    file_storage.seek(0)  # Reset pointer for Flask reuse
-    result = requests.post(url_api,
+    file_storage.seek(0)
+    try:
+        response = requests.post(url_api,
                   files = {"image.jpg": file_bytes},
                   data = {"apikey": api_key,
                           "language": "eng"})
-    result = result.content.decode()
-    result = json.loads(result)
-    parsed_results = result.get("ParsedResults", [{}])[0]
-    text_detected = parsed_results.get("ParsedText", "")
-    return text_detected
+        response_text = response.content.decode()
+        try:
+            result = json.loads(response_text)
+        except Exception as e:
+            logger.error(f"OCR API did not return JSON: {response_text}")
+            return f"OCR API error: {response_text}"
+        if not isinstance(result, dict):
+            logger.error(f"OCR API returned non-dict: {result}")
+            return f"OCR API error: {result}"
+        parsed_results = result.get("ParsedResults")
+        if not parsed_results or not isinstance(parsed_results, list) or not parsed_results[0]:
+            logger.error(f"OCR API missing ParsedResults: {result}")
+            return f"OCR API error: {result.get('ErrorMessage', 'No text found / OCR failed.')}"
+        text_detected = parsed_results[0].get("ParsedText", "")
+        return text_detected
+    except Exception as e:
+        logger.error(f"Exception in OCR: {e}")
+        return f"OCR error: {str(e)}"
 
 # Legacy function for clipboard screenshots remains for backward compatibility
 from PIL import ImageGrab

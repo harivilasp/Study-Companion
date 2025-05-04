@@ -22,53 +22,66 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+import logging
+
+# ... (rest of your imports)
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     summary = None
     error = None
-    input_text = ''
     extracted_text = None
     web_results = None
     youtube_results = None
     uploaded_image_url = None
 
     if request.method == 'POST':
-        # Text input or image upload?
         file = request.files.get('image')
-        input_text = request.form.get('input_text', '').strip()
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             uploaded_image_url = '/' + filepath
+            logger.info(f'Image uploaded: {filename}')
             try:
-                # OCR
                 file.seek(0)
                 extracted_text = img_ocr_copy.ocr_from_imagefile(file)
+                logger.info(f'OCR extracted text: {extracted_text[:100]}...')
                 if not extracted_text.strip():
                     error = 'No text detected in image.'
+                    logger.warning('No text detected in image.')
                 else:
-                    input_text = extracted_text
+                    # If extracted text is short, skip summarization
+                    num_sentences = extracted_text.count('.') + extracted_text.count('!') + extracted_text.count('?')
+                    if len(extracted_text) < 200 or num_sentences < 2:
+                        summary = extracted_text.strip()
+                        logger.info('Extracted text is short, skipping summarization.')
+                    else:
+                        summary_list = para_summarizer.generate_summary(extracted_text, top_n=2)
+                        summary = ' '.join(summary_list)
+                        logger.info(f'Summary: {summary}')
+                    # Web search
+                    try:
+                        web_results = list(search_results.gsearch(summary))
+                        youtube_results = list(search_results.gsearch('youtube : ' + summary))
+                        logger.info(f'Web results: {web_results[:2]}...')
+                        logger.info(f'YouTube results: {youtube_results[:2]}...')
+                    except Exception as e:
+                        logger.error(f'Web search error: {e}')
+                        web_results = None
+                        youtube_results = None
             except Exception as e:
-                error = f'OCR error: {str(e)}'
-        if input_text:
-            try:
-                # Summarize
-                summary_list = para_summarizer.generate_summary(input_text, top_n=2)
-                summary = ' '.join(summary_list)
-                # Web search
-                try:
-                    web_results = list(search_results.gsearch(summary))
-                    youtube_results = list(search_results.gsearch('youtube : ' + summary))
-                except Exception as e:
-                    web_results = None
-                    youtube_results = None
-            except Exception as e:
-                error = f'Error during summarization or search: {str(e)}'
-        elif not error:
-            error = 'Please upload an image or enter/paste some text.'
+                error = f'OCR or summarization error: {str(e)}'
+                logger.error(error)
+        else:
+            error = 'Please upload or paste an image.'
+            logger.warning('No image uploaded.')
 
-    return render_template('index.html', summary=summary, error=error, input_text=input_text, extracted_text=extracted_text, web_results=web_results, youtube_results=youtube_results, uploaded_image_url=uploaded_image_url)
+    return render_template('index.html', summary=summary, error=error, input_text='', extracted_text=extracted_text, web_results=web_results, youtube_results=youtube_results, uploaded_image_url=uploaded_image_url)
 
 if __name__ == '__main__':
     app.run(debug=True)
