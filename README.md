@@ -1,9 +1,11 @@
 # Study-Companion
 
 ## Main Idea
+
 **Study Companion** helps you get instant web resources and video explanations for any question or problem—just by taking a screenshot or uploading an image. The app extracts text from your image, summarizes it, and fetches the most relevant web pages and YouTube videos to clarify your doubts.
 
 ## How It Works
+
 1. **Have a Doubt or Need Clarification?**
 2. **Take a Screenshot/Snap** of the question or problem.
 3. **Upload the Image** (or paste the text) in the web app.
@@ -16,6 +18,7 @@
 ---
 
 ## Features
+
 - Upload a screenshot or image of any question/problem
 - Extracts text using OCR (OCR.space API)
 - Summarizes the extracted or pasted text (NLP)
@@ -24,6 +27,7 @@
 - Also supports direct text input
 
 ## Installation
+
 1. Clone this repository
 2. Install dependencies:
    ```bash
@@ -31,6 +35,7 @@
    ```
 
 ## Usage
+
 1. Start the web app:
    ```bash
    python app.py
@@ -40,11 +45,5 @@
 4. Get extracted text, summary, and instant web/video resources
 
 ## Example
+
 ![screenshot](screenshot.png)
-
----
-
-## Legacy Workflow
-This project also contains scripts for OCR and web search. See `main.py` and the flowchart below for the original command-line workflow.
-
-<img src="flowchart.png" alt="Legacy Workflow" width="600"/>
